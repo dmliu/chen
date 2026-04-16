@@ -316,7 +316,7 @@ def upload_for_token(token: str):
     if not uploaded_file or not uploaded_file.filename:
         abort(400, "请先选择文件")
 
-    file_name = secure_filename(uploaded_file.filename)
+    file_name = uploaded_file.filename
     if not file_name:
         abort(400, "文件名无效")
 
