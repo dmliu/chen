@@ -5,9 +5,7 @@ import io
 import mimetypes
 import os
 import secrets
-import shutil
 import socket
-import time
 from pathlib import Path
 
 import qrcode
@@ -20,7 +18,6 @@ BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-MAX_FILE_AGE_SECONDS = 24 * 60 * 60
 MAX_CONTENT_LENGTH = 1024 * 1024 * 1024
 DEFAULT_HOST = os.getenv("APP_HOST", "0.0.0.0")
 DEFAULT_PORT = int(os.getenv("APP_PORT", "8000"))
@@ -183,27 +180,39 @@ HTML_TEMPLATE = """
     <main>
         <section class="intro">
             <div class="pill">微信扫码后可直接访问下载链接</div>
-            <h1>上传文件并生成下载二维码</h1>
-            <p>在电脑上选择文件上传，服务会为该文件生成一个可访问的下载地址和二维码。</p>
+            <h1>先生成二维码，再上传文件</h1>
+            <p>先创建一个固定下载地址和二维码，再把文件上传到这个二维码对应的槽位中。</p>
+            <p>每个二维码只能绑定一个文件，文件上传后不会被程序自动删除。</p>
             <p>部署到服务器后，页面会自动使用当前域名生成下载链接；如有独立公网域名，也可通过环境变量固定访问地址。</p>
-            <p>为避免文件长期堆积，服务会自动清理 24 小时前上传的文件。</p>
         </section>
         <section>
-            {% if qr_image %}
+            {% if token %}
             <div class="result">
                 <img src="data:image/png;base64,{{ qr_image }}" alt="文件下载二维码">
-                <strong>{{ file_name }}</strong>
+                <strong>{% if file_name %}{{ file_name }}{% else %}二维码已生成，等待上传文件{% endif %}</strong>
                 <a href="{{ download_url }}" target="_blank">{{ download_url }}</a>
+                {% if file_uploaded %}
                 <p class="warning">如果微信里无法直接保存某些文件类型，可点击链接后在系统浏览器中继续下载。</p>
-                <a href="{{ url_for('index') }}">继续上传其他文件</a>
+                {% else %}
+                <p class="warning">二维码已经固定。现在上传文件后，这个链接就会开始提供下载。</p>
+                {% endif %}
             </div>
-            {% else %}
-            <form method="post" enctype="multipart/form-data">
+            {% if not file_uploaded %}
+            <form method="post" enctype="multipart/form-data" action="{{ url_for('upload_for_token', token=token) }}">
                 <div class="field">
                     <label for="file">选择文件</label>
                     <input id="file" name="file" type="file" required>
                 </div>
-                <button type="submit">上传并生成二维码</button>
+                <button type="submit">上传到当前二维码</button>
+            </form>
+            {% else %}
+            <div class="result">
+                <a href="{{ url_for('index') }}">继续上传其他文件</a>
+            </div>
+            {% endif %}
+            {% else %}
+            <form method="post" action="{{ url_for('create_qr') }}">
+                <button type="submit">生成二维码</button>
             </form>
             {% endif %}
         </section>
@@ -222,15 +231,6 @@ def guess_local_ip() -> str:
         return "127.0.0.1"
     finally:
         sock.close()
-
-
-def cleanup_old_uploads() -> None:
-    now = time.time()
-    for directory in UPLOAD_DIR.iterdir():
-        if not directory.is_dir():
-            continue
-        if now - directory.stat().st_mtime > MAX_FILE_AGE_SECONDS:
-            shutil.rmtree(directory, ignore_errors=True)
 
 
 def build_qr_code(content: str) -> str:
@@ -257,13 +257,60 @@ def get_saved_file(token: str) -> tuple[Path, str]:
     abort(404)
 
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    cleanup_old_uploads()
-    default_base_url = PUBLIC_BASE_URL or f"http://{guess_local_ip()}:{DEFAULT_PORT}"
+def find_existing_file(token: str) -> Path | None:
+    folder = UPLOAD_DIR / token
+    if not folder.is_dir():
+        return None
 
-    if request.method == "GET":
-        return render_template_string(HTML_TEMPLATE, qr_image=None, default_base_url=default_base_url)
+    for item in folder.iterdir():
+        if item.is_file():
+            return item
+    return None
+
+
+def render_index(*, token: str | None = None, file_name: str | None = None):
+    default_base_url = PUBLIC_BASE_URL or f"http://{guess_local_ip()}:{DEFAULT_PORT}"
+    download_url = None
+    qr_image = None
+    file_uploaded = bool(file_name)
+
+    if token:
+        download_url = f"{get_public_base_url()}{url_for('download_file', token=token)}"
+        qr_image = build_qr_code(download_url)
+
+    return render_template_string(
+        HTML_TEMPLATE,
+        token=token,
+        file_name=file_name,
+        file_uploaded=file_uploaded,
+        download_url=download_url,
+        qr_image=qr_image,
+        default_base_url=default_base_url,
+    )
+
+
+@app.route("/", methods=["GET"])
+def index():
+    return render_index()
+
+
+@app.route("/create", methods=["POST"])
+def create_qr():
+    token = secrets.token_urlsafe(8)
+    folder = UPLOAD_DIR / token
+    folder.mkdir(parents=True, exist_ok=False)
+    return render_index(token=token)
+
+
+@app.route("/upload/<token>", methods=["POST"])
+def upload_for_token(token: str):
+    folder = UPLOAD_DIR / token
+    if not folder.is_dir():
+        abort(404, "二维码不存在，请重新生成")
+
+    existing_file = find_existing_file(token)
+    if existing_file is not None:
+        abort(409, "该二维码已绑定文件，不能重复上传")
 
     uploaded_file = request.files.get("file")
     if not uploaded_file or not uploaded_file.filename:
@@ -273,26 +320,19 @@ def index():
     if not file_name:
         abort(400, "文件名无效")
 
-    token = secrets.token_urlsafe(8)
-    folder = UPLOAD_DIR / token
-    folder.mkdir(parents=True, exist_ok=False)
     saved_path = folder / file_name
     uploaded_file.save(saved_path)
-
-    download_url = f"{get_public_base_url()}{url_for('download_file', token=token)}"
-    qr_image = build_qr_code(download_url)
-    return render_template_string(
-        HTML_TEMPLATE,
-        qr_image=qr_image,
-        file_name=file_name,
-        download_url=download_url,
-        default_base_url=default_base_url,
-    )
+    return render_index(token=token, file_name=file_name)
 
 
 @app.route("/download/<token>")
 def download_file(token: str):
-    saved_path, download_name = get_saved_file(token)
+    try:
+        saved_path, download_name = get_saved_file(token)
+    except Exception:
+        if (UPLOAD_DIR / token).is_dir():
+            return "该二维码对应的文件还未上传，请稍后再试。", 404
+        raise
     mime_type, _ = mimetypes.guess_type(saved_path.name)
     return send_file(saved_path, as_attachment=True, download_name=download_name, mimetype=mime_type)
 
@@ -305,4 +345,5 @@ def favicon():
 if __name__ == "__main__":
     from waitress import serve
 
+    print(f"Server is running at http://127.0.0.1:{DEFAULT_PORT} (listening on {DEFAULT_HOST}:{DEFAULT_PORT})", flush=True)
     serve(app, host=DEFAULT_HOST, port=DEFAULT_PORT)
