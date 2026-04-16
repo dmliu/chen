@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import io
 import mimetypes
+import os
 import secrets
 import shutil
 import socket
@@ -11,6 +12,7 @@ from pathlib import Path
 
 import qrcode
 from flask import Flask, abort, redirect, render_template_string, request, send_file, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 
 
@@ -20,9 +22,13 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 MAX_FILE_AGE_SECONDS = 24 * 60 * 60
 MAX_CONTENT_LENGTH = 1024 * 1024 * 1024
+DEFAULT_HOST = os.getenv("APP_HOST", "0.0.0.0")
+DEFAULT_PORT = int(os.getenv("APP_PORT", "8000"))
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
 
 HTML_TEMPLATE = """
@@ -179,7 +185,7 @@ HTML_TEMPLATE = """
             <div class="pill">微信扫码后可直接访问下载链接</div>
             <h1>上传文件并生成下载二维码</h1>
             <p>在电脑上选择文件上传，服务会为该文件生成一个可访问的下载地址和二维码。</p>
-            <p>手机和电脑需要在同一网络下，并且地址栏中的主机名需要替换为电脑的局域网 IP。</p>
+            <p>部署到服务器后，页面会自动使用当前域名生成下载链接；如有独立公网域名，也可通过环境变量固定访问地址。</p>
             <p>为避免文件长期堆积，服务会自动清理 24 小时前上传的文件。</p>
         </section>
         <section>
@@ -193,10 +199,6 @@ HTML_TEMPLATE = """
             </div>
             {% else %}
             <form method="post" enctype="multipart/form-data">
-                <div class="field">
-                    <label for="server_base_url">服务器访问地址</label>
-                    <input id="server_base_url" name="server_base_url" type="text" value="{{ default_base_url }}" placeholder="例如 http://192.168.1.10:5500" required>
-                </div>
                 <div class="field">
                     <label for="file">选择文件</label>
                     <input id="file" name="file" type="file" required>
@@ -238,6 +240,12 @@ def build_qr_code(content: str) -> str:
     return base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
+def get_public_base_url() -> str:
+    if PUBLIC_BASE_URL:
+        return PUBLIC_BASE_URL
+    return request.host_url.rstrip("/")
+
+
 def get_saved_file(token: str) -> tuple[Path, str]:
     folder = UPLOAD_DIR / token
     if not folder.is_dir():
@@ -252,17 +260,14 @@ def get_saved_file(token: str) -> tuple[Path, str]:
 @app.route("/", methods=["GET", "POST"])
 def index():
     cleanup_old_uploads()
-    default_base_url = f"http://{guess_local_ip()}:5500"
+    default_base_url = PUBLIC_BASE_URL or f"http://{guess_local_ip()}:{DEFAULT_PORT}"
 
     if request.method == "GET":
         return render_template_string(HTML_TEMPLATE, qr_image=None, default_base_url=default_base_url)
 
     uploaded_file = request.files.get("file")
-    base_url = (request.form.get("server_base_url") or "").strip().rstrip("/")
     if not uploaded_file or not uploaded_file.filename:
         abort(400, "请先选择文件")
-    if not base_url:
-        abort(400, "请输入服务器访问地址")
 
     file_name = secure_filename(uploaded_file.filename)
     if not file_name:
@@ -274,7 +279,7 @@ def index():
     saved_path = folder / file_name
     uploaded_file.save(saved_path)
 
-    download_url = f"{base_url}{url_for('download_file', token=token)}"
+    download_url = f"{get_public_base_url()}{url_for('download_file', token=token)}"
     qr_image = build_qr_code(download_url)
     return render_template_string(
         HTML_TEMPLATE,
@@ -298,4 +303,6 @@ def favicon():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5500, debug=True)
+    from waitress import serve
+
+    serve(app, host=DEFAULT_HOST, port=DEFAULT_PORT)
