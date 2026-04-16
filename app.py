@@ -343,7 +343,4 @@ def favicon():
 
 
 if __name__ == "__main__":
-    from waitress import serve
-
-    print(f"Server is running at http://127.0.0.1:{DEFAULT_PORT} (listening on {DEFAULT_HOST}:{DEFAULT_PORT})", flush=True)
-    serve(app, host=DEFAULT_HOST, port=DEFAULT_PORT)
+    print(f"请使用 'python start_uwsgi.py' 或 'uwsgi --ini uwsgi.ini' 启动服务。", flush=True)
