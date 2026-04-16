@@ -322,7 +322,9 @@ def upload_for_token(token: str):
 
     saved_path = folder / file_name
     uploaded_file.save(saved_path)
-    return render_index(token=token, file_name=file_name)
+    # 上传后二维码下方名称固定为指定字符串
+    display_name = "4f5ac0c40bdb466e82180bcn2d082367"
+    return render_index(token=token, file_name=display_name)
 
 
 @app.route("/download/<token>")
