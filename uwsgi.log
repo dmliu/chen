@@ -813,3 +813,11 @@ OSError: write error
 [pid: 21403|app: 0|req: 155/629] 106.120.13.36 () {36 vars in 699 bytes} [Sat Apr 18 16:18:42 2026] GET /favicon.ico => generated 199 bytes in 1 msecs (HTTP/1.1 302) 3 headers in 101 bytes (1 switches on core 1)
 [uwsgi-http key: ssdwm.com:8000 client_addr: 106.120.13.36 client_port: 23261] hr_read(): Connection reset by peer [plugins/http/http.c line 918]
 [pid: 21406|app: 0|req: 230/630] 106.120.13.36 () {36 vars in 699 bytes} [Sat Apr 18 16:18:43 2026] GET /favicon.ico => generated 199 bytes in 3 msecs (HTTP/1.1 302) 3 headers in 101 bytes (1 switches on core 0)
+[pid: 21406|app: 0|req: 231/631] 104.248.18.107 () {22 vars in 235 bytes} [Sat Apr 18 17:01:14 2026] GET / => generated 4536 bytes in 14 msecs (HTTP/1.0 200) 2 headers in 81 bytes (1 switches on core 1)
+[pid: 21406|app: 0|req: 232/632] 104.248.18.107 () {22 vars in 296 bytes} [Sat Apr 18 17:01:20 2026] GET /nice%20ports%2C/Tri%6Eity.txt%2ebak => generated 207 bytes in 0 msecs (HTTP/1.0 404) 2 headers in 87 bytes (1 switches on core 0)
+[pid: 21405|app: 0|req: 188/633] 104.248.18.107 () {22 vars in 239 bytes} [Sat Apr 18 17:01:27 2026] OPTIONS / => generated 0 bytes in 5 msecs (HTTP/1.0 200) 3 headers in 105 bytes (0 switches on core 0)
+[pid: 21405|app: 0|req: 189/634] 104.248.18.107 () {22 vars in 239 bytes} [Sat Apr 18 17:01:28 2026] OPTIONS / => generated 0 bytes in 0 msecs (RTSP/1.0 200) 3 headers in 105 bytes (0 switches on core 1)
+[pid: 21405|app: 0|req: 190/635] 104.248.18.107 () {40 vars in 485 bytes} [Sat Apr 18 17:01:28 2026] OPTIONS sip:nm => generated 207 bytes in 2 msecs (SIP/2.0 404) 2 headers in 86 bytes (1 switches on core 0)
+[pid: 21403|app: 0|req: 156/636] 209.38.224.169 () {28 vars in 341 bytes} [Sat Apr 18 17:01:29 2026] GET /?pretty => generated 4536 bytes in 7 msecs (HTTP/1.1 200) 2 headers in 81 bytes (1 switches on core 0)
+[pid: 21406|app: 0|req: 233/637] 209.38.224.169 () {28 vars in 371 bytes} [Sat Apr 18 17:01:29 2026] GET /_cluster/health?pretty => generated 207 bytes in 2 msecs (HTTP/1.1 404) 2 headers in 87 bytes (1 switches on core 1)
+[pid: 21405|app: 0|req: 191/638] 209.38.224.169 () {28 vars in 375 bytes} [Sat Apr 18 17:01:30 2026] GET /_cat/indices?format=json => generated 207 bytes in 1 msecs (HTTP/1.1 404) 2 headers in 87 bytes (1 switches on core 1)
