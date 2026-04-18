@@ -496,7 +496,7 @@ WECHAT_DOWNLOAD_TEMPLATE = """
             <div class="wxtip-card">
                 <h2 class="wxtip-title">请点击右上角</h2>
                 <p class="wxtip-txt">选择“<span class="browser-open-label"><img src="data:image/png;base64,{{ guide_image_base64 }}" alt="">在浏览器打开</span>”后再下载文件。</p>
-                <button class="wxtip-close" type="button" id="close-wechat-tip">我知道了</button>
+                <a class="wxtip-close" id="close-wechat-tip" href="{{ raw_download_url }}" target="_blank" rel="noopener noreferrer">去浏览器打开</a>
             </div>
         </div>
     </div>
