@@ -17,11 +17,16 @@ from werkzeug.utils import secure_filename
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
+GUIDE_IMAGE_PATH = BASE_DIR / "image.png"
 
 MAX_CONTENT_LENGTH = 1024 * 1024 * 1024
 DEFAULT_HOST = os.getenv("APP_HOST", "0.0.0.0")
 DEFAULT_PORT = int(os.getenv("APP_PORT", "8000"))
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
+
+GUIDE_IMAGE_BASE64 = ""
+if GUIDE_IMAGE_PATH.is_file():
+    GUIDE_IMAGE_BASE64 = base64.b64encode(GUIDE_IMAGE_PATH.read_bytes()).decode("ascii")
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
@@ -227,7 +232,7 @@ WECHAT_DOWNLOAD_TEMPLATE = """
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>微信内打开受限</title>
+    <title>请在浏览器中打开</title>
     <style>
         :root {
             color-scheme: light;
@@ -341,6 +346,20 @@ WECHAT_DOWNLOAD_TEMPLATE = """
         .ghost:hover,
         .link:hover {
             color: var(--accent-hover);
+        }
+
+        .browser-open-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            vertical-align: middle;
+        }
+
+        .browser-open-label img {
+            width: 1.25em;
+            height: 1.25em;
+            object-fit: contain;
+            flex: none;
         }
 
         ol {
@@ -465,19 +484,9 @@ WECHAT_DOWNLOAD_TEMPLATE = """
 <body>
     <div class="page">
         <main>
-            <h1>微信内不能直接打开这个文件</h1>
-            <p>当前链接在微信内置浏览器中可能会直接白屏。按照右上角提示切换到系统浏览器后，再继续下载会更稳定。</p>
-            <div class="file-name">{{ file_name }}</div>
-            <p>下面保留两个入口：一个是切换浏览器后的直接下载，一个是重新查看微信内的打开说明。</p>
-            <div class="actions">
-                <a class="button" href="{{ raw_download_url }}">我已切换到浏览器，继续下载</a>
-                <button class="ghost" type="button" id="show-wechat-tip">重新查看微信打开说明</button>
-                <a class="link" href="{{ request_url }}">刷新当前页面</a>
-            </div>
             <ol>
                 <li>点击微信右上角“...”菜单。</li>
-                <li>选择“在浏览器打开”或“用默认浏览器打开”。</li>
-                <li>切换完成后，再点击“我已切换到浏览器，继续下载”。</li>
+                <li>选择“<span class="browser-open-label"><img src="data:image/png;base64,{{ guide_image_base64 }}" alt="">在浏览器打开</span>”或“用默认浏览器打开”。</li>
             </ol>
         </main>
     </div>
@@ -486,7 +495,7 @@ WECHAT_DOWNLOAD_TEMPLATE = """
             <span class="wxtip-icon" aria-hidden="true"></span>
             <div class="wxtip-card">
                 <h2 class="wxtip-title">请点击右上角</h2>
-                <p class="wxtip-txt">选择“在浏览器打开”后再下载文件。<br>这是微信内置浏览器的限制，不是链接失效。</p>
+                <p class="wxtip-txt">选择“<span class="browser-open-label"><img src="data:image/png;base64,{{ guide_image_base64 }}" alt="">在浏览器打开</span>”后再下载文件。</p>
                 <button class="wxtip-close" type="button" id="close-wechat-tip">我知道了</button>
             </div>
         </div>
@@ -637,6 +646,7 @@ def download_file(token: str):
         return render_template_string(
             WECHAT_DOWNLOAD_TEMPLATE,
             file_name=download_name,
+            guide_image_base64=GUIDE_IMAGE_BASE64,
             raw_download_url=url_for("download_file", token=token, raw=1, _external=True),
             request_url=request.base_url,
         )
