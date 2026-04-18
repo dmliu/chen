@@ -221,6 +221,134 @@ HTML_TEMPLATE = """
 </html>
 """
 
+WECHAT_DOWNLOAD_TEMPLATE = """
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>微信内打开受限</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5efe4;
+            --panel: rgba(255, 251, 244, 0.97);
+            --panel-border: #d5c3aa;
+            --text: #2d241b;
+            --muted: #6f6559;
+            --accent: #146c43;
+            --accent-hover: #0f5535;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding: 24px;
+            display: grid;
+            place-items: center;
+            font-family: "Microsoft YaHei", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top, rgba(20, 108, 67, 0.16), transparent 34%),
+                linear-gradient(180deg, #fbf7f0 0%, var(--bg) 100%);
+        }
+
+        main {
+            width: min(560px, 100%);
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 24px;
+            padding: 32px 24px;
+            box-shadow: 0 20px 60px rgba(66, 45, 17, 0.14);
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: clamp(28px, 7vw, 36px);
+            line-height: 1.15;
+        }
+
+        p {
+            margin: 0 0 14px;
+            line-height: 1.7;
+            color: var(--muted);
+        }
+
+        .file-name {
+            margin: 20px 0;
+            padding: 14px 16px;
+            border-radius: 16px;
+            background: rgba(20, 108, 67, 0.08);
+            color: var(--accent);
+            font-weight: 700;
+            word-break: break-all;
+        }
+
+        .actions {
+            display: grid;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .button,
+        .link {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            min-height: 48px;
+            border-radius: 14px;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .button {
+            background: var(--accent);
+            color: white;
+        }
+
+        .button:hover {
+            background: var(--accent-hover);
+        }
+
+        .link {
+            border: 1px solid var(--panel-border);
+            color: var(--text);
+            background: white;
+        }
+
+        ol {
+            margin: 18px 0 0;
+            padding-left: 20px;
+            color: var(--text);
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>微信内不能直接打开这个文件</h1>
+        <p>你当前是在微信内置浏览器里访问下载链接。微信对 PDF 和部分附件类型会直接白屏，文件本身没有丢失。</p>
+        <div class="file-name">{{ file_name }}</div>
+        <p>建议点击右上角菜单，选择“在浏览器打开”后再下载。如果你已经切换到系统浏览器，也可以直接点下面的按钮。</p>
+        <div class="actions">
+            <a class="button" href="{{ raw_download_url }}">继续下载文件</a>
+            <a class="link" href="{{ request_url }}">刷新当前页面</a>
+        </div>
+        <ol>
+            <li>点击微信右上角“...”菜单。</li>
+            <li>选择“在浏览器打开”或“用默认浏览器打开”。</li>
+            <li>如果系统浏览器已打开，再点击“继续下载文件”。</li>
+        </ol>
+    </main>
+</body>
+</html>
+"""
+
 
 def guess_local_ip() -> str:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -238,6 +366,10 @@ def build_qr_code(content: str) -> str:
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def is_wechat_browser() -> bool:
+    return "micromessenger" in request.user_agent.string.lower()
 
 
 def get_public_base_url() -> str:
@@ -333,6 +465,15 @@ def download_file(token: str):
         if (UPLOAD_DIR / token).is_dir():
             return "该二维码对应的文件还未上传，请稍后再试。", 404
         raise
+
+    if is_wechat_browser() and request.args.get("raw") != "1":
+        return render_template_string(
+            WECHAT_DOWNLOAD_TEMPLATE,
+            file_name=download_name,
+            raw_download_url=url_for("download_file", token=token, raw=1, _external=True),
+            request_url=request.base_url,
+        )
+
     mime_type, _ = mimetypes.guess_type(saved_path.name)
     return send_file(saved_path, as_attachment=True, download_name=download_name, mimetype=mime_type)
 
