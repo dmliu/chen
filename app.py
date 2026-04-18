@@ -497,14 +497,14 @@ WECHAT_DOWNLOAD_TEMPLATE = """
             <div class="wxtip-card">
                 <h2 class="wxtip-title">请点击右上角</h2>
                 <p class="wxtip-txt">选择“<span class="browser-open-label"><img src="data:image/png;base64,{{ guide_image_base64 }}" alt="">在浏览器打开</span>”后再下载文件。</p>
-                <a class="wxtip-close" id="close-wechat-tip" href="{{ raw_download_url }}" target="_blank" rel="noopener noreferrer">去浏览器打开</a>
+                <a class="wxtip-close" id="close-wechat-tip" href="{{ raw_download_url }}" data-raw-url="{{ raw_download_url }}" rel="noopener noreferrer">自动打开浏览器</a>
             </div>
         </div>
     </div>
     <script>
         const tipElement = document.getElementById("wechat-tip");
-        const showTipButton = document.getElementById("show-wechat-tip");
-        const closeTipButton = document.getElementById("close-wechat-tip");
+        const browserOpenLink = document.getElementById("close-wechat-tip");
+        const rawDownloadUrl = browserOpenLink?.dataset.rawUrl || browserOpenLink?.href || "";
 
         function showTip() {
             tipElement.hidden = false;
@@ -514,13 +514,65 @@ WECHAT_DOWNLOAD_TEMPLATE = """
             tipElement.hidden = true;
         }
 
-        showTipButton.addEventListener("click", showTip);
-        closeTipButton.addEventListener("click", hideTip);
-        tipElement.addEventListener("click", function(event) {
-            if (event.target === tipElement) {
-                hideTip();
+        function buildBrowserLaunchCandidates(url) {
+            const userAgent = navigator.userAgent || "";
+            const strippedUrl = url.replace(/^https?:\\/\\//, "");
+            const scheme = url.startsWith("https://") ? "https" : "http";
+            const candidates = [];
+
+            if (/Android/i.test(userAgent)) {
+                candidates.push(`intent://${strippedUrl}#Intent;scheme=${scheme};package=com.android.chrome;end`);
+                candidates.push(`googlechrome://navigate?url=${url}`);
+                candidates.push(`mttbrowser://url=${url}`);
+                candidates.push(`ucweb://${url}`);
             }
-        });
+
+            if (/(iPhone|iPad|iPod)/i.test(userAgent)) {
+                candidates.push(`googlechrome://${strippedUrl}`);
+                candidates.push(`mttbrowser://url=${url}`);
+                candidates.push(`x-safari-${scheme}://${strippedUrl}`);
+            }
+
+            return candidates;
+        }
+
+        function tryOpenExternalBrowser() {
+            if (!rawDownloadUrl) {
+                return;
+            }
+
+            const candidates = buildBrowserLaunchCandidates(rawDownloadUrl);
+            if (!candidates.length) {
+                return;
+            }
+
+            showTip();
+
+            candidates.forEach(function(candidate, index) {
+                window.setTimeout(function() {
+                    if (!document.hidden) {
+                        window.location.href = candidate;
+                    }
+                }, 160 * index);
+            });
+        }
+
+        if (browserOpenLink) {
+            browserOpenLink.addEventListener("click", function(event) {
+                event.preventDefault();
+                tryOpenExternalBrowser();
+            });
+        }
+
+        if (tipElement) {
+            tipElement.addEventListener("click", function(event) {
+                if (event.target === tipElement) {
+                    hideTip();
+                }
+            });
+        }
+
+        window.setTimeout(tryOpenExternalBrowser, 320);
     </script>
 </body>
 </html>
