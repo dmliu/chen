@@ -460,6 +460,7 @@ WECHAT_DOWNLOAD_TEMPLATE = """
             background: transparent;
             font: inherit;
             cursor: pointer;
+            text-decoration: none;
         }
 
         @media (max-width: 640px) {
