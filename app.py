@@ -231,13 +231,14 @@ WECHAT_DOWNLOAD_TEMPLATE = """
     <style>
         :root {
             color-scheme: light;
-            --bg: #f5efe4;
-            --panel: rgba(255, 251, 244, 0.97);
-            --panel-border: #d5c3aa;
-            --text: #2d241b;
-            --muted: #6f6559;
-            --accent: #146c43;
-            --accent-hover: #0f5535;
+            --bg: #ffffff;
+            --panel: #ffffff;
+            --panel-border: #e5e7eb;
+            --text: #111827;
+            --muted: #6b7280;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --overlay: rgba(0, 0, 0, 0.82);
         }
 
         * {
@@ -247,28 +248,30 @@ WECHAT_DOWNLOAD_TEMPLATE = """
         body {
             margin: 0;
             min-height: 100vh;
-            padding: 24px;
-            display: grid;
-            place-items: center;
             font-family: "Microsoft YaHei", sans-serif;
             color: var(--text);
-            background:
-                radial-gradient(circle at top, rgba(20, 108, 67, 0.16), transparent 34%),
-                linear-gradient(180deg, #fbf7f0 0%, var(--bg) 100%);
+            background: var(--bg);
+        }
+
+        .page {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
         }
 
         main {
             width: min(560px, 100%);
             background: var(--panel);
             border: 1px solid var(--panel-border);
-            border-radius: 24px;
-            padding: 32px 24px;
-            box-shadow: 0 20px 60px rgba(66, 45, 17, 0.14);
+            border-radius: 16px;
+            padding: 28px 24px;
+            box-shadow: none;
         }
 
         h1 {
             margin: 0 0 12px;
-            font-size: clamp(28px, 7vw, 36px);
+            font-size: clamp(26px, 7vw, 34px);
             line-height: 1.15;
         }
 
@@ -281,11 +284,12 @@ WECHAT_DOWNLOAD_TEMPLATE = """
         .file-name {
             margin: 20px 0;
             padding: 14px 16px;
-            border-radius: 16px;
-            background: rgba(20, 108, 67, 0.08);
+            border-radius: 12px;
+            background: #f9fafb;
             color: var(--accent);
             font-weight: 700;
             word-break: break-all;
+            border: 1px solid #e5e7eb;
         }
 
         .actions {
@@ -295,7 +299,8 @@ WECHAT_DOWNLOAD_TEMPLATE = """
         }
 
         .button,
-        .link {
+        .link,
+        .ghost {
             display: inline-flex;
             justify-content: center;
             align-items: center;
@@ -309,6 +314,7 @@ WECHAT_DOWNLOAD_TEMPLATE = """
         .button {
             background: var(--accent);
             color: white;
+            border: 0;
         }
 
         .button:hover {
@@ -321,30 +327,191 @@ WECHAT_DOWNLOAD_TEMPLATE = """
             background: white;
         }
 
+        .ghost {
+            border: 0;
+            background: transparent;
+            color: var(--accent);
+            cursor: pointer;
+            font: inherit;
+            padding: 0;
+            min-height: auto;
+            justify-content: flex-start;
+        }
+
+        .ghost:hover,
+        .link:hover {
+            color: var(--accent-hover);
+        }
+
         ol {
             margin: 18px 0 0;
             padding-left: 20px;
             color: var(--text);
             line-height: 1.8;
         }
+
+        .wxtip {
+            position: fixed;
+            inset: 0;
+            z-index: 998;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 24px 20px;
+            background: var(--overlay);
+        }
+
+        .wxtip[hidden] {
+            display: none;
+        }
+
+        .wxtip-inner {
+            width: min(560px, 100%);
+            position: relative;
+            padding-top: 96px;
+        }
+
+        .wxtip-icon {
+            position: absolute;
+            top: 12px;
+            right: 6px;
+            width: 86px;
+            height: 86px;
+            transform: rotate(-8deg);
+        }
+
+        .wxtip-icon::before {
+            content: "";
+            position: absolute;
+            right: 10px;
+            top: 0;
+            width: 34px;
+            height: 34px;
+            border-top: 6px solid #ffffff;
+            border-right: 6px solid #ffffff;
+            border-radius: 4px;
+            transform: rotate(18deg);
+        }
+
+        .wxtip-icon::after {
+            content: "";
+            position: absolute;
+            right: 26px;
+            top: 22px;
+            width: 8px;
+            height: 56px;
+            background: #ffffff;
+            border-radius: 999px;
+            transform: rotate(44deg);
+            transform-origin: top center;
+        }
+
+        .wxtip-card {
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 20px 18px;
+            backdrop-filter: blur(6px);
+        }
+
+        .wxtip-title {
+            margin: 0 0 10px;
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .wxtip-txt {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.96);
+            font-size: 16px;
+            line-height: 1.75;
+        }
+
+        .wxtip-close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 16px;
+            min-width: 112px;
+            min-height: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 999px;
+            color: #ffffff;
+            background: transparent;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        @media (max-width: 640px) {
+            .page {
+                padding: 16px;
+            }
+
+            main {
+                padding: 24px 18px;
+            }
+
+            .wxtip-inner {
+                padding-top: 84px;
+            }
+
+            .wxtip-title {
+                font-size: 22px;
+            }
+        }
     </style>
 </head>
 <body>
-    <main>
-        <h1>微信内不能直接打开这个文件</h1>
-        <p>你当前是在微信内置浏览器里访问下载链接。微信对 PDF 和部分附件类型会直接白屏，文件本身没有丢失。</p>
-        <div class="file-name">{{ file_name }}</div>
-        <p>建议点击右上角菜单，选择“在浏览器打开”后再下载。如果你已经切换到系统浏览器，也可以直接点下面的按钮。</p>
-        <div class="actions">
-            <a class="button" href="{{ raw_download_url }}">继续下载文件</a>
-            <a class="link" href="{{ request_url }}">刷新当前页面</a>
+    <div class="page">
+        <main>
+            <h1>微信内不能直接打开这个文件</h1>
+            <p>当前链接在微信内置浏览器中可能会直接白屏。按照右上角提示切换到系统浏览器后，再继续下载会更稳定。</p>
+            <div class="file-name">{{ file_name }}</div>
+            <p>下面保留两个入口：一个是切换浏览器后的直接下载，一个是重新查看微信内的打开说明。</p>
+            <div class="actions">
+                <a class="button" href="{{ raw_download_url }}">我已切换到浏览器，继续下载</a>
+                <button class="ghost" type="button" id="show-wechat-tip">重新查看微信打开说明</button>
+                <a class="link" href="{{ request_url }}">刷新当前页面</a>
+            </div>
+            <ol>
+                <li>点击微信右上角“...”菜单。</li>
+                <li>选择“在浏览器打开”或“用默认浏览器打开”。</li>
+                <li>切换完成后，再点击“我已切换到浏览器，继续下载”。</li>
+            </ol>
+        </main>
+    </div>
+    <div class="wxtip" id="wechat-tip">
+        <div class="wxtip-inner">
+            <span class="wxtip-icon" aria-hidden="true"></span>
+            <div class="wxtip-card">
+                <h2 class="wxtip-title">请点击右上角</h2>
+                <p class="wxtip-txt">选择“在浏览器打开”后再下载文件。<br>这是微信内置浏览器的限制，不是链接失效。</p>
+                <button class="wxtip-close" type="button" id="close-wechat-tip">我知道了</button>
+            </div>
         </div>
-        <ol>
-            <li>点击微信右上角“...”菜单。</li>
-            <li>选择“在浏览器打开”或“用默认浏览器打开”。</li>
-            <li>如果系统浏览器已打开，再点击“继续下载文件”。</li>
-        </ol>
-    </main>
+    </div>
+    <script>
+        const tipElement = document.getElementById("wechat-tip");
+        const showTipButton = document.getElementById("show-wechat-tip");
+        const closeTipButton = document.getElementById("close-wechat-tip");
+
+        function showTip() {
+            tipElement.hidden = false;
+        }
+
+        function hideTip() {
+            tipElement.hidden = true;
+        }
+
+        showTipButton.addEventListener("click", showTip);
+        closeTipButton.addEventListener("click", hideTip);
+        tipElement.addEventListener("click", function(event) {
+            if (event.target === tipElement) {
+                hideTip();
+            }
+        });
+    </script>
 </body>
 </html>
 """
