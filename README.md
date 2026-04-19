@@ -45,11 +45,15 @@ http://服务器IP:8000
 - `APP_HOST`：监听地址，默认 `0.0.0.0`
 - `APP_PORT`：监听端口，默认 `8000`
 - `PUBLIC_BASE_URL`：可选，固定生成二维码时使用的公网地址，例如 `https://files.example.com`
+- `DOWNLOAD_REDIRECT_BASE_URL`：可选，下载路由先返回 302 到这个地址，适合保留域名入口但把实际文件传输切到另一个可用入口，例如 `http://8.217.138.206:8000`
 
 示例：
 
 ```bash
 APP_HOST=0.0.0.0 APP_PORT=8080 PUBLIC_BASE_URL=https://files.example.com python app.py
+
+# 保留域名入口，但把实际下载跳转到另一个地址
+APP_HOST=0.0.0.0 APP_PORT=8000 PUBLIC_BASE_URL=http://ssdwm.com:8000 DOWNLOAD_REDIRECT_BASE_URL=http://8.217.138.206:8000 python app.py
 ```
 
 在 Windows PowerShell 中：
@@ -58,6 +62,12 @@ APP_HOST=0.0.0.0 APP_PORT=8080 PUBLIC_BASE_URL=https://files.example.com python 
 $env:APP_HOST = "0.0.0.0"
 $env:APP_PORT = "8080"
 $env:PUBLIC_BASE_URL = "https://files.example.com"
+python app.py
+
+$env:APP_HOST = "0.0.0.0"
+$env:APP_PORT = "8000"
+$env:PUBLIC_BASE_URL = "http://ssdwm.com:8000"
+$env:DOWNLOAD_REDIRECT_BASE_URL = "http://8.217.138.206:8000"
 python app.py
 ```
 
@@ -80,6 +90,7 @@ python app.py
 1. 应用监听本机端口，例如 `127.0.0.1:8000`。
 2. 反向代理把公网域名转发到该端口。
 3. 如需固定二维码域名，可设置 `PUBLIC_BASE_URL=https://你的域名`。
+4. 如果某些地区访问域名下载会被链路中断，但 IP 下载正常，可额外设置 `DOWNLOAD_REDIRECT_BASE_URL=http://你的IP:端口`，让用户仍然访问域名入口，由服务端立即 302 到 IP 下载地址。
 
 ## 使用方法
 

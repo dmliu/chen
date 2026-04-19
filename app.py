@@ -6,6 +6,7 @@ import mimetypes
 import os
 import secrets
 import socket
+from urllib.parse import urlencode, urlsplit
 from pathlib import Path
 
 import qrcode
@@ -23,6 +24,7 @@ MAX_CONTENT_LENGTH = 1024 * 1024 * 1024
 DEFAULT_HOST = os.getenv("APP_HOST", "0.0.0.0")
 DEFAULT_PORT = int(os.getenv("APP_PORT", "8000"))
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
+DOWNLOAD_REDIRECT_BASE_URL = os.getenv("DOWNLOAD_REDIRECT_BASE_URL", "").strip().rstrip("/")
 
 GUIDE_IMAGE_BASE64 = ""
 if GUIDE_IMAGE_PATH.is_file():
@@ -555,6 +557,28 @@ def get_public_base_url() -> str:
     return request.host_url.rstrip("/")
 
 
+def get_download_redirect_url(token: str) -> str | None:
+    if not DOWNLOAD_REDIRECT_BASE_URL:
+        return None
+
+    redirect_target = urlsplit(DOWNLOAD_REDIRECT_BASE_URL)
+    request_target = urlsplit(request.host_url.rstrip("/"))
+    if redirect_target.netloc == request_target.netloc:
+        return None
+
+    query_items = [(key, value) for key, value in request.args.items() if key != "raw"]
+    if is_wechat_browser():
+        query_items.append(("raw", "1"))
+    elif "raw" in request.args:
+        query_items.append(("raw", request.args["raw"]))
+
+    query_string = urlencode(query_items)
+    redirect_url = f"{DOWNLOAD_REDIRECT_BASE_URL}{url_for('download_file', token=token)}"
+    if query_string:
+        redirect_url = f"{redirect_url}?{query_string}"
+    return redirect_url
+
+
 def get_saved_file(token: str) -> tuple[Path, str]:
     folder = UPLOAD_DIR / token
     if not folder.is_dir():
@@ -642,6 +666,10 @@ def download_file(token: str):
         if (UPLOAD_DIR / token).is_dir():
             return "该二维码对应的文件还未上传，请稍后再试。", 404
         raise
+
+    redirect_url = get_download_redirect_url(token)
+    if redirect_url is not None:
+        return redirect(redirect_url, code=302)
 
     if is_wechat_browser() and request.args.get("raw") != "1":
         return render_template_string(
