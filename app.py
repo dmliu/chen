@@ -228,6 +228,103 @@ HTML_TEMPLATE = """
 </html>
 """
 
+REDIRECT_DOWNLOAD_TEMPLATE = """
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>正在跳转下载</title>
+    <meta http-equiv="refresh" content="0; url={{ redirect_url }}">
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f7f1e8;
+            --panel: #fffaf2;
+            --panel-border: #d6c8b5;
+            --text: #2d241b;
+            --muted: #6f6559;
+            --accent: #146c43;
+            --accent-hover: #0f5535;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background:
+                radial-gradient(circle at top left, rgba(20, 108, 67, 0.16), transparent 32%),
+                radial-gradient(circle at right bottom, rgba(185, 142, 73, 0.18), transparent 28%),
+                var(--bg);
+            font-family: "Microsoft YaHei", sans-serif;
+            color: var(--text);
+        }
+
+        main {
+            width: min(560px, 100%);
+            padding: 32px;
+            border: 1px solid var(--panel-border);
+            border-radius: 24px;
+            background: rgba(255, 250, 242, 0.94);
+            box-shadow: 0 20px 60px rgba(66, 45, 17, 0.12);
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: clamp(28px, 4vw, 36px);
+            line-height: 1.15;
+        }
+
+        p {
+            margin: 0 0 14px;
+            line-height: 1.7;
+            color: var(--muted);
+        }
+
+        a {
+            color: var(--accent);
+            word-break: break-all;
+        }
+
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+            padding: 0 18px;
+            border-radius: 14px;
+            background: var(--accent);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .button:hover {
+            background: var(--accent-hover);
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>正在准备下载</h1>
+        <p>如果浏览器没有自动开始下载，请点击下面的按钮继续。</p>
+        <p><strong>{{ file_name }}</strong></p>
+        <p><a class="button" href="{{ redirect_url }}">继续下载</a></p>
+        <p><a href="{{ redirect_url }}">{{ redirect_url }}</a></p>
+    </main>
+    <script>
+        window.location.replace({{ redirect_url|tojson }});
+    </script>
+</body>
+</html>
+"""
+
 WECHAT_DOWNLOAD_TEMPLATE = """
 <!doctype html>
 <html lang="zh-CN">
@@ -579,6 +676,11 @@ def get_download_redirect_url(token: str) -> str | None:
     return redirect_url
 
 
+def should_render_redirect_page() -> bool:
+    accept_header = request.headers.get("Accept", "")
+    return "text/html" in accept_header.lower()
+
+
 def get_saved_file(token: str) -> tuple[Path, str]:
     folder = UPLOAD_DIR / token
     if not folder.is_dir():
@@ -669,6 +771,12 @@ def download_file(token: str):
 
     redirect_url = get_download_redirect_url(token)
     if redirect_url is not None:
+        if should_render_redirect_page():
+            return render_template_string(
+                REDIRECT_DOWNLOAD_TEMPLATE,
+                file_name=download_name,
+                redirect_url=redirect_url,
+            )
         return redirect(redirect_url, code=302)
 
     if is_wechat_browser() and request.args.get("raw") != "1":
