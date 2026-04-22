@@ -6,7 +6,6 @@ import mimetypes
 import os
 import secrets
 import socket
-from urllib.parse import urlencode, urlsplit
 from pathlib import Path
 
 import qrcode
@@ -24,7 +23,6 @@ MAX_CONTENT_LENGTH = 1024 * 1024 * 1024
 DEFAULT_HOST = os.getenv("APP_HOST", "0.0.0.0")
 DEFAULT_PORT = int(os.getenv("APP_PORT", "8000"))
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
-DOWNLOAD_REDIRECT_BASE_URL = os.getenv("DOWNLOAD_REDIRECT_BASE_URL", "").strip().rstrip("/")
 
 GUIDE_IMAGE_BASE64 = ""
 if GUIDE_IMAGE_PATH.is_file():
@@ -94,104 +92,6 @@ HTML_TEMPLATE = """
 
         h1 {
             margin: 0 0 12px;
-            font-size: clamp(28px, 4vw, 40px);
-            line-height: 1.1;
-        }
-
-        p {
-            margin: 0 0 14px;
-            line-height: 1.7;
-            color: var(--muted);
-        }
-
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            border-radius: 999px;
-            padding: 8px 12px;
-            background: rgba(20, 108, 67, 0.09);
-            color: var(--accent);
-            font-size: 14px;
-            margin-bottom: 18px;
-        }
-
-        form {
-            display: grid;
-            gap: 16px;
-        }
-
-        .field {
-            display: grid;
-            gap: 8px;
-        }
-
-        label {
-            font-weight: 600;
-        }
-
-        input[type="file"],
-        input[type="text"] {
-            width: 100%;
-            padding: 12px 14px;
-            border-radius: 14px;
-            border: 1px solid var(--panel-border);
-            background: white;
-            color: var(--text);
-        }
-
-        button {
-            border: 0;
-            border-radius: 14px;
-            padding: 14px 18px;
-            background: var(--accent);
-            color: white;
-            font-weight: 700;
-            cursor: pointer;
-            transition: background 0.2s ease;
-        }
-
-        button:hover {
-            background: var(--accent-hover);
-        }
-
-        .result {
-            display: grid;
-            place-items: center;
-            gap: 12px;
-            text-align: center;
-        }
-
-        .result img {
-            width: min(320px, 100%);
-            aspect-ratio: 1;
-            border-radius: 20px;
-            padding: 16px;
-            background: white;
-            border: 1px solid var(--panel-border);
-        }
-
-        .result a {
-            color: var(--accent);
-            word-break: break-all;
-        }
-
-        .warning {
-            margin-top: 8px;
-            color: #8e4d17;
-            font-size: 14px;
-        }
-    </style>
-</head>
-<body>
-    <main>
-        <section class="intro">
-            <div class="pill">微信扫码后可直接访问下载链接</div>
-            <h1>先生成二维码，再上传文件</h1>
-            <p>先创建一个固定下载地址和二维码，再把文件上传到这个二维码对应的槽位中。</p>
-            <p>每个二维码只能绑定一个文件，文件上传后不会被程序自动删除。</p>
-            <p>部署到服务器后，页面会自动使用当前域名生成下载链接；如有独立公网域名，也可通过环境变量固定访问地址。</p>
-        </section>
         <section>
             {% if token %}
             <div class="result">
@@ -654,33 +554,6 @@ def get_public_base_url() -> str:
     return request.host_url.rstrip("/")
 
 
-def get_download_redirect_url(token: str) -> str | None:
-    if not DOWNLOAD_REDIRECT_BASE_URL:
-        return None
-
-    redirect_target = urlsplit(DOWNLOAD_REDIRECT_BASE_URL)
-    request_target = urlsplit(request.host_url.rstrip("/"))
-    if redirect_target.netloc == request_target.netloc:
-        return None
-
-    query_items = [(key, value) for key, value in request.args.items() if key != "raw"]
-    if is_wechat_browser():
-        query_items.append(("raw", "1"))
-    elif "raw" in request.args:
-        query_items.append(("raw", request.args["raw"]))
-
-    query_string = urlencode(query_items)
-    redirect_url = f"{DOWNLOAD_REDIRECT_BASE_URL}{url_for('download_file', token=token)}"
-    if query_string:
-        redirect_url = f"{redirect_url}?{query_string}"
-    return redirect_url
-
-
-def should_render_redirect_page() -> bool:
-    accept_header = request.headers.get("Accept", "")
-    return "text/html" in accept_header.lower()
-
-
 def get_saved_file(token: str) -> tuple[Path, str]:
     folder = UPLOAD_DIR / token
     if not folder.is_dir():
@@ -768,16 +641,6 @@ def download_file(token: str):
         if (UPLOAD_DIR / token).is_dir():
             return "该二维码对应的文件还未上传，请稍后再试。", 404
         raise
-
-    redirect_url = get_download_redirect_url(token)
-    if redirect_url is not None:
-        if should_render_redirect_page():
-            return render_template_string(
-                REDIRECT_DOWNLOAD_TEMPLATE,
-                file_name=download_name,
-                redirect_url=redirect_url,
-            )
-        return redirect(redirect_url, code=302)
 
     if is_wechat_browser() and request.args.get("raw") != "1":
         return render_template_string(
