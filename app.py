@@ -92,6 +92,103 @@ HTML_TEMPLATE = """
 
         h1 {
             margin: 0 0 12px;
+            font-size: clamp(28px, 4vw, 40px);
+            line-height: 1.1;
+        }
+
+        p {
+            margin: 0 0 14px;
+            line-height: 1.7;
+            color: var(--muted);
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            padding: 8px 12px;
+            background: rgba(20, 108, 67, 0.09);
+            color: var(--accent);
+            font-size: 14px;
+            margin-bottom: 18px;
+        }
+
+        form {
+            display: grid;
+            gap: 16px;
+        }
+
+        .field {
+            display: grid;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: 600;
+        }
+
+        input[type="file"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--panel-border);
+            background: white;
+            color: var(--text);
+        }
+
+        button {
+            border: 0;
+            border-radius: 14px;
+            padding: 14px 18px;
+            background: var(--accent);
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        button:hover {
+            background: var(--accent-hover);
+        }
+
+        .result {
+            display: grid;
+            place-items: center;
+            gap: 12px;
+            text-align: center;
+        }
+
+        .result img {
+            width: min(320px, 100%);
+            aspect-ratio: 1;
+            border-radius: 20px;
+            padding: 16px;
+            background: white;
+            border: 1px solid var(--panel-border);
+        }
+
+        .result a {
+            color: var(--accent);
+            word-break: break-all;
+        }
+
+        .warning {
+            margin-top: 8px;
+            color: #8e4d17;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <section class="intro">
+            <div class="pill">微信扫码后可直接访问下载链接</div>
+            <h1>先生成二维码，再上传文件</h1>
+            <p>先创建一个固定下载地址和二维码，再把文件上传到这个二维码对应的槽位中。</p>
+            <p>每个二维码只能绑定一个文件，文件上传后不会被程序自动删除。</p>
+            <p>部署到服务器后，页面会自动使用当前域名生成下载链接；如有独立公网域名，也可通过环境变量固定访问地址。</p>
         <section>
             {% if token %}
             <div class="result">
@@ -124,103 +221,6 @@ HTML_TEMPLATE = """
             {% endif %}
         </section>
     </main>
-</body>
-</html>
-"""
-
-REDIRECT_DOWNLOAD_TEMPLATE = """
-<!doctype html>
-<html lang="zh-CN">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>正在跳转下载</title>
-    <meta http-equiv="refresh" content="0; url={{ redirect_url }}">
-    <style>
-        :root {
-            color-scheme: light;
-            --bg: #f7f1e8;
-            --panel: #fffaf2;
-            --panel-border: #d6c8b5;
-            --text: #2d241b;
-            --muted: #6f6559;
-            --accent: #146c43;
-            --accent-hover: #0f5535;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            display: grid;
-            place-items: center;
-            padding: 24px;
-            background:
-                radial-gradient(circle at top left, rgba(20, 108, 67, 0.16), transparent 32%),
-                radial-gradient(circle at right bottom, rgba(185, 142, 73, 0.18), transparent 28%),
-                var(--bg);
-            font-family: "Microsoft YaHei", sans-serif;
-            color: var(--text);
-        }
-
-        main {
-            width: min(560px, 100%);
-            padding: 32px;
-            border: 1px solid var(--panel-border);
-            border-radius: 24px;
-            background: rgba(255, 250, 242, 0.94);
-            box-shadow: 0 20px 60px rgba(66, 45, 17, 0.12);
-        }
-
-        h1 {
-            margin: 0 0 12px;
-            font-size: clamp(28px, 4vw, 36px);
-            line-height: 1.15;
-        }
-
-        p {
-            margin: 0 0 14px;
-            line-height: 1.7;
-            color: var(--muted);
-        }
-
-        a {
-            color: var(--accent);
-            word-break: break-all;
-        }
-
-        .button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 48px;
-            padding: 0 18px;
-            border-radius: 14px;
-            background: var(--accent);
-            color: #fff;
-            text-decoration: none;
-            font-weight: 700;
-        }
-
-        .button:hover {
-            background: var(--accent-hover);
-        }
-    </style>
-</head>
-<body>
-    <main>
-        <h1>正在准备下载</h1>
-        <p>如果浏览器没有自动开始下载，请点击下面的按钮继续。</p>
-        <p><strong>{{ file_name }}</strong></p>
-        <p><a class="button" href="{{ redirect_url }}">继续下载</a></p>
-        <p><a href="{{ redirect_url }}">{{ redirect_url }}</a></p>
-    </main>
-    <script>
-        window.location.replace({{ redirect_url|tojson }});
-    </script>
 </body>
 </html>
 """
