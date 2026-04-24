@@ -44,12 +44,12 @@ http://127.0.0.1:8000
 
 - `APP_HOST`：监听地址，默认 `0.0.0.0`
 - `APP_PORT`：监听端口，默认 `8000`
-- `PUBLIC_BASE_URL`：可选，固定生成二维码时使用的公网地址，例如 `https://files.example.com`
+- `PUBLIC_BASE_URL`：可选，固定生成二维码时使用的公网地址，例如 `https://ssdwm.com`
 
 示例：
 
 ```bash
-APP_HOST=0.0.0.0 APP_PORT=8080 PUBLIC_BASE_URL=https://files.example.com python app.py
+APP_HOST=0.0.0.0 APP_PORT=8080 PUBLIC_BASE_URL=https://ssdwm.com python app.py
 ```
 
 在 Windows PowerShell 中：
@@ -57,7 +57,7 @@ APP_HOST=0.0.0.0 APP_PORT=8080 PUBLIC_BASE_URL=https://files.example.com python 
 ```powershell
 $env:APP_HOST = "0.0.0.0"
 $env:APP_PORT = "8080"
-$env:PUBLIC_BASE_URL = "https://files.example.com"
+$env:PUBLIC_BASE_URL = "https://ssdwm.com"
 python app.py
 ```
 
@@ -81,12 +81,45 @@ python app.py
 
 1. 应用只监听本机端口，例如 `127.0.0.1:8000`。
 2. Nginx 对外监听 `80` 和 `443`。
-3. `80` 统一跳转到 `https://你的域名`。
+3. `80` 统一跳转到 `https://ssdwm.com`。
 4. `443` 反向代理到 `http://127.0.0.1:8000`。
-5. 固定二维码域名时，设置 `PUBLIC_BASE_URL=https://你的域名`。
+5. 固定二维码域名时，设置 `PUBLIC_BASE_URL=https://ssdwm.com`。
 6. 将 `nginx.ssdwm.conf` 放到 Nginx 站点配置目录后重新加载 Nginx。
 
 示例 Nginx 配置见项目中的 `nginx.ssdwm.conf`。
+
+## 重启服务
+
+如果你是按当前项目的推荐方式部署，一般需要重启两个部分：uWSGI 和 Nginx。
+
+先重启 uWSGI：
+
+```bash
+pkill -f "uwsgi --ini uwsgi.ini"
+cd /你的项目目录
+python start_uwsgi.py
+```
+
+如果你的服务器使用 systemd 管理这个项目，优先用 systemd：
+
+```bash
+sudo systemctl restart uwsgi
+```
+
+然后重载 Nginx 配置：
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+如果 `systemctl` 不可用，也可以直接执行：
+
+```bash
+sudo nginx -s reload
+```
+
+重启完成后，访问 `https://ssdwm.com` 检查是否生效。
 
 ## 使用方法
 
