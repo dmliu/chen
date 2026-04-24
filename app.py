@@ -7,6 +7,7 @@ import os
 import secrets
 import socket
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import qrcode
 from flask import Flask, abort, redirect, render_template_string, request, send_file, url_for
@@ -548,10 +549,27 @@ def is_wechat_browser() -> bool:
     return "micromessenger" in request.user_agent.string.lower()
 
 
+def read_public_base_url() -> str:
+    return os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
+
+
+def is_local_host(hostname: str) -> bool:
+    normalized_host = hostname.strip().lower()
+    return normalized_host in {"", "localhost", "127.0.0.1", "::1"}
+
+
 def get_public_base_url() -> str:
-    if PUBLIC_BASE_URL:
-        return PUBLIC_BASE_URL
-    return request.host_url.rstrip("/")
+    request_base_url = request.host_url.rstrip("/")
+    configured_base_url = read_public_base_url()
+    if not configured_base_url:
+        return request_base_url
+
+    request_host = request.host.split(":", 1)[0].strip().lower()
+    configured_host = urlsplit(configured_base_url).hostname or ""
+    if request_host and not is_local_host(request_host) and request_host != configured_host.lower():
+        return request_base_url
+
+    return configured_base_url
 
 
 def get_saved_file(token: str) -> tuple[Path, str]:
@@ -577,7 +595,8 @@ def find_existing_file(token: str) -> Path | None:
 
 
 def render_index(*, token: str | None = None, file_name: str | None = None):
-    default_base_url = PUBLIC_BASE_URL or f"http://{guess_local_ip()}:{DEFAULT_PORT}"
+    configured_base_url = read_public_base_url()
+    default_base_url = configured_base_url or f"http://{guess_local_ip()}:{DEFAULT_PORT}"
     download_url = None
     qr_image = None
     file_uploaded = bool(file_name)
@@ -643,11 +662,12 @@ def download_file(token: str):
         raise
 
     if is_wechat_browser() and request.args.get("raw") != "1":
+        public_base_url = get_public_base_url()
         return render_template_string(
             WECHAT_DOWNLOAD_TEMPLATE,
             file_name=download_name,
             guide_image_base64=GUIDE_IMAGE_BASE64,
-            raw_download_url=url_for("download_file", token=token, raw=1, _external=True),
+            raw_download_url=f"{public_base_url}{url_for('download_file', token=token, raw=1)}",
             request_url=request.base_url,
         )
 
